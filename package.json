@@ -1,0 +1,52 @@
+{
+  "name": "openmodal",
+  "version": "1.0.0",
+  "description": "vite+vue+ts+less+eslint+husky基础环境",
+  "main": "index.js",
+  "scripts": {
+    "serve": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "prepare": "husky install",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "vue": "^3.3.4"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^17.7.2",
+    "@commitlint/config-conventional": "^17.7.0",
+    "@typescript-eslint/eslint-plugin": "^6.4.0",
+    "@typescript-eslint/parser": "^6.7.3",
+    "@vitejs/plugin-vue": "^4.4.0",
+    "eslint": "^8.0.1",
+    "eslint-config-standard-with-typescript": "^39.1.0",
+    "eslint-plugin-import": "^2.25.2",
+    "eslint-plugin-n": "^15.0.0 || ^16.0.0 ",
+    "eslint-plugin-promise": "^6.0.0",
+    "eslint-plugin-vue": "^9.17.0",
+    "husky": "^8.0.0",
+    "less": "^4.2.0",
+    "lint-staged": "^14.0.1",
+    "typescript": "*",
+    "vite": "^4.4.9"
+  },
+  "lint-staged": {
+    "src/**/*.{js,jsx,ts,tsx,vue}": [
+      "eslint --fix"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
+  }
+}

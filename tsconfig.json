@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "jsx": "preserve",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "types": [
+      "node",
+      "webpack-env"
+    ],
+    "allowSyntheticDefaultImports": true
+  },
+  "parserOptions": ["vue"],
+  "include": [
+    "packages/*.ts",
+    "packages/**/*.ts",
+    "packages/**/*.vue",
+    "packages/*.vue",
+    "test/**/*.vue",
+    "test/*.vue",
+    "tsconfig.json",
+    ".eslintrc.js",
+    "test/*.ts",
+    "*.ts"
+  ],
+  "exclude": ["node_modules", "tests/server/**/*.ts", "dist"]
+}
