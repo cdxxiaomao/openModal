@@ -33,6 +33,7 @@ interface OpenModalProps {
   isResize?: boolean
   resizeOptions?: Record<string, any>
   onOpenChange?: (status: boolean) => void
+  zoomFromMouse?: boolean // 新增参数
 }
 
 interface ModalMapItem {
@@ -42,11 +43,6 @@ interface ModalMapItem {
   removeEventListenerChangeZIndex: () => void
 }
 
-/**
- * 打开一个模态框
- * @param props 模态框的配置
- * @returns ModalMapItem
- */
 export function openModal (props: OpenModalProps): ModalMapItem {
   const {
     title,
@@ -68,10 +64,13 @@ export function openModal (props: OpenModalProps): ModalMapItem {
     placement = 'right',
     isResize = false,
     resizeOptions = {},
-    onOpenChange
+    onOpenChange,
+    zoomFromMouse = false // 获取 zoomFromMouse 参数
   } = props
 
-  // 创建模态框的容器
+  const mouseX = zoomFromMouse ? (window.event?.clientX || window.innerWidth / 2) : window.innerWidth / 2
+  const mouseY = zoomFromMouse ? (window.event?.clientY || window.innerHeight / 2) : window.innerHeight / 2
+
   const wrapperEl = document.createElement('div')
   wrapperEl.style.position = 'fixed'
   wrapperEl.style.top = '0'
@@ -82,18 +81,22 @@ export function openModal (props: OpenModalProps): ModalMapItem {
   wrapperEl.style.display = 'flex'
   wrapperEl.style.justifyContent = 'center'
   wrapperEl.style.alignItems = 'center'
-  wrapperEl.style.backgroundColor = mask ? 'rgba(0, 0, 0, 0.5)' : 'transparent'
+  wrapperEl.style.transition = 'background-color 0.3s ease' // 为 mask 添加透明度变化动画
 
-  // 创建模态框内容
   const modalEl = document.createElement('div')
   modalEl.style.width = typeof width === 'number' ? `${width}px` : width
   modalEl.style.height = typeof height === 'number' ? `${height}px` : height
   modalEl.style.backgroundColor = '#fff'
   modalEl.style.borderRadius = '4px'
   modalEl.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)'
-  modalEl.style.position = 'relative'
+  modalEl.style.position = 'absolute'
+  modalEl.style.left = `${mouseX}px`
+  modalEl.style.top = `${mouseY}px`
+  modalEl.style.transformOrigin = 'center'
+  modalEl.style.transition = 'transform 0.3s ease, opacity 0.3s ease'
+  modalEl.style.opacity = '0'
+  modalEl.style.transform = zoomFromMouse ? 'scale(0)' : 'translate(-50%, -50%) scale(0)' // 初始时从点击位置或中间缩放
 
-  // 添加标题
   const titleEl = document.createElement('div')
   titleEl.style.padding = '16px'
   titleEl.style.borderBottom = '1px solid #e8e8e8'
@@ -102,12 +105,10 @@ export function openModal (props: OpenModalProps): ModalMapItem {
   titleEl.textContent = typeof title === 'function' ? title() : title.toString()
   modalEl.appendChild(titleEl)
 
-  // 添加内容区域
   const contentEl = document.createElement('div')
-  contentEl.className = 'modal-content' // 为内容区域添加类名
+  contentEl.className = 'modal-content'
   contentEl.style.padding = '16px'
 
-  // 如果 content 是字符串或数字，直接渲染
   if (typeof content === 'string' || typeof content === 'number') {
     contentEl.innerHTML = content.toString()
   } else if (content instanceof HTMLElement) {
@@ -116,7 +117,6 @@ export function openModal (props: OpenModalProps): ModalMapItem {
 
   modalEl.appendChild(contentEl)
 
-  // 添加底部
   if (footer) {
     const footerEl = document.createElement('div')
     footerEl.style.padding = '16px'
@@ -124,11 +124,11 @@ export function openModal (props: OpenModalProps): ModalMapItem {
     footerEl.style.textAlign = 'right'
 
     if (typeof footer === 'object' && !Array.isArray(footer)) {
-      const { isOk = true, isCancel = true, okText = '确定', cancelText = '取消' } = footer
+      const { isOk = true, isCancel = true, okText = '确定', canText = '取消' } = footer
 
       if (isCancel) {
         const cancelButton = document.createElement('button')
-        cancelButton.textContent = cancelText
+        cancelButton.textContent = canText
         cancelButton.onclick = () => {
           onCancel?.()
           closeModal()
@@ -145,54 +145,41 @@ export function openModal (props: OpenModalProps): ModalMapItem {
         }
         footerEl.appendChild(okButton)
       }
-    } else if (typeof footer === 'function') {
-      footerEl.innerHTML = footer()
-    } else if (footer === true) {
-      const defaultFooter = document.createElement('div')
-      defaultFooter.innerHTML = '<button>取消</button><button>确定</button>'
-      footerEl.appendChild(defaultFooter)
     }
 
     modalEl.appendChild(footerEl)
   }
 
-  // 将模态框添加到容器中
   wrapperEl.appendChild(modalEl)
-
-  // 将容器添加到指定的 DOM 元素中
   const container = getContainer()
   container.appendChild(wrapperEl)
 
-  // 处理 ESC 键关闭
-  let handleKeyDown: ((e: KeyboardEvent) => void) | null = null
-  if (escClose) {
-    handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        closeModal()
-      }
+  setTimeout(() => {
+    modalEl.style.transform = 'translate(-50%, -50%) scale(1)' // 在加载完成后，平滑地缩放至原始大小
+    modalEl.style.opacity = '1'
+    if (mask) {
+      wrapperEl.style.backgroundColor = 'rgba(0, 0, 0, 0.5)' // 显示 mask 时，透明度逐渐变为 0.5
     }
-    document.addEventListener('keydown', handleKeyDown)
-  }
+  }, 0)
 
-  // 关闭模态框
   function closeModal () {
-    onCloseEvent?.()
-    wrapperEl.remove()
-    if (escClose && handleKeyDown) {
-      document.removeEventListener('keydown', handleKeyDown)
+    if (mask) {
+      wrapperEl.style.backgroundColor = 'rgba(0, 0, 0, 0)' // 关闭时，mask 透明度逐渐变为 0
     }
-    onOpenChange?.(false)
+    modalEl.style.transform = zoomFromMouse ? 'scale(0)' : 'translate(-50%, -50%) scale(0)' // 关闭时缩小
+    modalEl.style.opacity = '0'
+
+    setTimeout(() => {
+      onCloseEvent?.()
+      wrapperEl.remove()
+      onOpenChange?.(false)
+    }, 300)
   }
 
-  // 返回模态框的相关信息
   return {
     wrapperEl,
     modalKey: `modal-${Date.now()}`,
     props,
-    removeEventListenerChangeZIndex: () => {
-      if (escClose && handleKeyDown) {
-        document.removeEventListener('keydown', handleKeyDown)
-      }
-    }
+    removeEventListenerChangeZIndex: () => {}
   }
 }
