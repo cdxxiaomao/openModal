@@ -77,30 +77,83 @@ interface ModalMapItem {
 
 const modalStore: ModalMapItem[] = [] // 用于保存所有打开的窗口
 
+// 外部统一的键盘事件监听器
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') {
+    // 获取当前前置的窗口
+    const topModal = modalStore[modalStore.length - 1]
+
+    if (topModal && (topModal.props.escClose ?? true)) {
+      // 关闭当前前置的窗口
+      closeModalFunction(topModal)
+    }
+  }
+}
+
+// 在模块加载时添加全局键盘事件监听器
+document.addEventListener('keydown', handleKeyDown)
+
+// 将关闭逻辑提取为一个函数
+const closeModalFunction = (modalItem: ModalMapItem) => {
+  if (!modalItem.props.isOpenMore && modalItem.props.mask) {
+    modalItem.wrapperEl.style.transition = 'background-color 0.3s ease' // 添加背景透明度渐变
+    modalItem.wrapperEl.style.backgroundColor = 'rgba(0, 0, 0, 0)' // 关闭时，mask 透明度渐变为 0
+  }
+  const modalEl = modalItem.wrapperEl.querySelector('div') as HTMLElement
+  modalEl.style.transform = 'scale(0)' // 关闭时缩小
+  modalEl.style.opacity = '0'
+
+  setTimeout(() => {
+    modalItem.props.onCloseEvent?.()
+    modalItem.wrapperEl.remove()
+    modalStore.pop() // 从 modalStore 中移除已关闭的窗口
+    modalItem.props.onOpenChange?.(false)
+  }, 300)
+}
+
 export function openModal (props: OpenModalProps): ModalMapItem {
+  // 处理默认值
+  const processedProps = {
+    mode: 'modal',
+    width: '50%',
+    height: 'auto',
+    zIndex: 1000,
+    isFullScreen: false,
+    getContainer: () => document.body,
+    isOpenMore: false,
+    mask: !props.isOpenMore, // 修改：当 isOpenMore 为 true 时，默认 mask 为 false
+    escClose: true,
+    footer: true,
+    placement: 'right',
+    isResize: false,
+    resizeOptions: {},
+    zoomFromMouse: false,
+    ...props // 用户传入的 props 会覆盖默认值
+  }
+
   const {
     title,
-    mode = 'modal',
-    width = '50%',
-    height = 'auto',
-    zIndex = 1000,
-    isFullScreen = false,
-    getContainer = () => document.body,
+    mode,
+    width,
+    height,
+    zIndex,
+    isFullScreen,
+    getContainer,
     onCloseEvent,
     content,
-    isOpenMore = false, // 获取 isOpenMore 参数
-    mask = true,
-    escClose = true,
-    footer = true,
+    isOpenMore,
+    mask,
+    escClose,
+    footer,
     visibleChange,
     onCancel,
     onOk,
-    placement = 'right',
-    isResize = false,
-    resizeOptions = {},
+    placement,
+    isResize,
+    resizeOptions,
     onOpenChange,
-    zoomFromMouse = false
-  } = props
+    zoomFromMouse
+  } = processedProps
 
   const mouseX = zoomFromMouse ? (window.event?.clientX || window.innerWidth / 2) : window.innerWidth / 2
   const mouseY = zoomFromMouse ? (window.event?.clientY || window.innerHeight / 2) : window.innerHeight / 2
@@ -201,30 +254,37 @@ export function openModal (props: OpenModalProps): ModalMapItem {
     }, 0)
   }
 
-  // 如果是多开窗口
-  if (isOpenMore) {
-    modalStore.push({
-      wrapperEl,
-      modalKey: `modal-${Date.now()}`,
-      props,
-      removeEventListenerChangeZIndex: () => {
-        modalEl.addEventListener('click', () => {
-          modalStore.forEach(item => {
-            item.wrapperEl.style.zIndex = (zIndex + modalStore.indexOf(item)).toString() // 修改：其他窗口 z-index 恢复
-          })
-          wrapperEl.style.zIndex = (zIndex + modalStore.length).toString() // 修改：当前点击窗口置顶
+  modalStore.push({
+    wrapperEl,
+    modalKey: `modal-${Date.now()}`,
+    props: processedProps, // 使用处理后的 props
+    removeEventListenerChangeZIndex: () => {
+      modalEl.addEventListener('click', () => {
+        modalStore.forEach(item => {
+          item.wrapperEl.style.zIndex = (zIndex + modalStore.indexOf(item)).toString()
         })
-      }
-    })
+        wrapperEl.style.zIndex = (zIndex + modalStore.length).toString()
+      })
+    }
+  })
 
-    // 为每个弹窗添加点击事件，确保点击时前置
-    modalEl.addEventListener('mousedown', () => {
+  // 为每个弹窗添加点击事件，确保点击时前置
+  modalEl.addEventListener('mousedown', () => {
+    // 如果 mask 为 true，则不进行前置操作
+    if (!mask) {
+      // 将当前窗口移动到 modalStore 数组的末尾，确保它成为前置窗口
+      const currentIndex = modalStore.findIndex(item => item.wrapperEl === wrapperEl)
+      if (currentIndex !== -1) {
+        const [currentModal] = modalStore.splice(currentIndex, 1)
+        modalStore.push(currentModal)
+      }
+
       modalStore.forEach(item => {
         item.wrapperEl.style.zIndex = (zIndex + modalStore.indexOf(item)).toString() // 修改：其他窗口 z-index 恢复
       })
       wrapperEl.style.zIndex = (zIndex + modalStore.length).toString() // 修改：当前点击窗口置顶
-    })
-  }
+    }
+  })
 
   setTimeout(() => {
     modalEl.style.left = `${mouseX - modalEl.offsetWidth / 2}px` // 使用 left 定位
@@ -234,23 +294,16 @@ export function openModal (props: OpenModalProps): ModalMapItem {
   }, 0)
 
   function closeModal () {
-    if (!isOpenMore && mask) {
-      wrapperEl.style.backgroundColor = 'rgba(0, 0, 0, 0)' // 关闭时，mask 透明度渐变为 0
+    const topModal = modalStore[modalStore.length - 1]
+    if (topModal) {
+      closeModalFunction(topModal)
     }
-    modalEl.style.transform = 'scale(0)' // 关闭时缩小
-    modalEl.style.opacity = '0'
-
-    setTimeout(() => {
-      onCloseEvent?.()
-      wrapperEl.remove()
-      onOpenChange?.(false)
-    }, 300)
   }
 
   return {
     wrapperEl,
     modalKey: `modal-${Date.now()}`,
-    props,
+    props: processedProps, // 使用处理后的 props
     removeEventListenerChangeZIndex: () => {}
   }
 }
