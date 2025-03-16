@@ -1,4 +1,5 @@
 import { dragElement } from 'poohou-drag-element'
+import { useResizeElement } from 'poohou-resize-element'
 
 // 类型定义
 type RenderType = string | number | HTMLElement | ((h: () => HTMLElement) => HTMLElement)
@@ -198,6 +199,15 @@ export function openModal (props: OpenModalProps): ModalMapItem {
     reference: 'window',
     handle: [titleEl]
   })
+
+  setTimeout(() => {
+    useResizeElement(modalEl, {
+      isFixed: true,
+      showOnHover: false,
+      position: ['top', 'left', 'bottom-left', 'bottom-right', 'bottom', 'top-left', 'top-right', 'right'],
+      showHandleStyle: false
+    })
+  }, 500)
 
   const contentEl = document.createElement('div')
   contentEl.className = 'modal-content'
