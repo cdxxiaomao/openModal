@@ -111,11 +111,12 @@ export function openModal (props: OpenModalProps): ModalMapItem {
   wrapperEl.style.left = '0'
   wrapperEl.style.width = '100%'
   wrapperEl.style.height = '100%'
-  wrapperEl.style.zIndex = zIndex.toString()
+  wrapperEl.style.zIndex = (zIndex + modalStore.length).toString() // 修改：为新窗口设置更高的 z-index
   wrapperEl.style.display = 'flex'
   wrapperEl.style.justifyContent = 'center'
   wrapperEl.style.alignItems = 'center'
   wrapperEl.style.transition = 'background-color 0.3s ease'
+  wrapperEl.style.pointerEvents = isOpenMore ? 'none' : 'auto' // 新增：当 isOpenMore 为 true 时，禁用点击事件
 
   const modalEl = document.createElement('div')
   modalEl.style.width = typeof width === 'number' ? `${width}px` : width
@@ -130,6 +131,7 @@ export function openModal (props: OpenModalProps): ModalMapItem {
   modalEl.style.transition = 'transform 0.3s ease, opacity 0.3s ease'
   modalEl.style.opacity = '0'
   modalEl.style.transform = 'scale(0)' // 初始时从点击位置或中间缩放
+  modalEl.style.pointerEvents = 'auto' // 新增：确保模态框内部可以点击
 
   const titleEl = document.createElement('div')
   titleEl.style.padding = '16px'
@@ -208,11 +210,19 @@ export function openModal (props: OpenModalProps): ModalMapItem {
       removeEventListenerChangeZIndex: () => {
         modalEl.addEventListener('click', () => {
           modalStore.forEach(item => {
-            item.wrapperEl.style.zIndex = '999' // 其他窗口 z-index 恢复
+            item.wrapperEl.style.zIndex = (zIndex + modalStore.indexOf(item)).toString() // 修改：其他窗口 z-index 恢复
           })
-          wrapperEl.style.zIndex = '1001' // 当前点击窗口置顶
+          wrapperEl.style.zIndex = (zIndex + modalStore.length).toString() // 修改：当前点击窗口置顶
         })
       }
+    })
+
+    // 为每个弹窗添加点击事件，确保点击时前置
+    modalEl.addEventListener('mousedown', () => {
+      modalStore.forEach(item => {
+        item.wrapperEl.style.zIndex = (zIndex + modalStore.indexOf(item)).toString() // 修改：其他窗口 z-index 恢复
+      })
+      wrapperEl.style.zIndex = (zIndex + modalStore.length).toString() // 修改：当前点击窗口置顶
     })
   }
 
