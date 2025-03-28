@@ -1,5 +1,6 @@
 import { dragElement } from 'poohou-drag-element'
 import { useResizeElement } from 'poohou-resize-element'
+import { fullscreenElement } from 'fullscreen-element'
 
 // 类型定义
 type RenderType = string | number | HTMLElement | ((h: () => HTMLElement) => HTMLElement)
@@ -236,12 +237,15 @@ export function openModal (props: OpenModalProps): ModalMapItem {
   fullScreenButtonEl.onmouseleave = () => {
     fullScreenButtonEl.style.backgroundColor = 'transparent'
   }
+
+  const { toggle } = fullscreenElement(modalEl)
+
   fullScreenButtonEl.onclick = () => {
     fullScreenButtonEl.style.backgroundColor = '#d9d9d9' // 点击时背景变深
     setTimeout(() => {
       fullScreenButtonEl.style.backgroundColor = '#f0f0f0' // 恢复移入状态
     }, 200)
-    toggleFullScreen(modalEl)
+    toggle()
   }
 
   // 关闭按钮样式调整
@@ -279,41 +283,14 @@ export function openModal (props: OpenModalProps): ModalMapItem {
 
   // 新增：双击头部全屏与还原
   titleEl.ondblclick = () => {
-    toggleFullScreen(modalEl)
+    toggle()
   }
-
-  let originalLeft: string, originalTop: string
 
   // 在模态框初始化时记录默认的居中位置
   setTimeout(() => {
     modalEl.style.transform = 'scale(1)' // 在加载完成后，平滑地缩放至原始大小
     modalEl.style.opacity = '1'
-    // 记录默认的居中位置
-    originalLeft = (Number(mouseX) / 2).toString() + 'px'
-    originalTop = (Number(mouseY) / 2).toString() + 'px'
   }, 0)
-
-  // 新增：切换全屏函数
-  function toggleFullScreen (modalEl: HTMLElement) {
-    if (processedProps.isFullScreen) {
-      // 取消全屏时恢复默认的居中位置
-      modalEl.style.left = originalLeft
-      modalEl.style.top = originalTop
-      modalEl.style.width = typeof width === 'number' ? `${width}px` : width
-      modalEl.style.height = typeof height === 'number' ? `${height}px` : height
-      fullScreenButtonEl.innerHTML = '⛶' // 切换图标为全屏
-    } else {
-      originalLeft = modalEl.style.left
-      originalTop = modalEl.style.top
-      // 全屏时不记录当前位置
-      modalEl.style.width = '100%'
-      modalEl.style.height = '100%'
-      modalEl.style.left = '0'
-      modalEl.style.top = '0'
-      fullScreenButtonEl.innerHTML = '⛿' // 切换图标为取消全屏
-    }
-    processedProps.isFullScreen = !processedProps.isFullScreen // 确保状态正确更新
-  }
 
   if (closeButton) {
     if (typeof closeButton === 'string' || typeof closeButton === 'number') {
