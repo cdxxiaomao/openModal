@@ -67,6 +67,8 @@ interface OpenModalProps {
   onOpenChange?: (status: boolean) => void
   /** 是否从鼠标点击位置开始缩放模态框，默认为 false */
   zoomFromMouse?: boolean
+  /** 自定义关闭按钮，支持字符串、数字、HTML元素或返回HTML元素的函数 */
+  closeButton?: RenderType
 }
 
 interface ModalMapItem {
@@ -101,7 +103,7 @@ const closeModalFunction = (modalItem: ModalMapItem) => {
     modalItem.wrapperEl.style.backgroundColor = 'rgba(0, 0, 0, 0)' // 关闭时，mask 透明度渐变为 0
   }
   const modalEl = modalItem.wrapperEl.querySelector('div') as HTMLElement
-  modalEl.style.transform = 'scale(0)' // 关闭时缩小
+  modalEl.style.transform = 'scale(0.5)' // 关闭时缩小
   modalEl.style.opacity = '0'
 
   setTimeout(() => {
@@ -153,7 +155,8 @@ export function openModal (props: OpenModalProps): ModalMapItem {
     isResize,
     resizeOptions,
     onOpenChange,
-    zoomFromMouse
+    zoomFromMouse,
+    closeButton
   } = processedProps
 
   const mouseX = zoomFromMouse ? (window.event?.clientX || window.innerWidth / 2) : window.innerWidth / 2
@@ -166,7 +169,7 @@ export function openModal (props: OpenModalProps): ModalMapItem {
   wrapperEl.style.width = '100%'
   wrapperEl.style.height = '100%'
   wrapperEl.style.zIndex = (zIndex + modalStore.length).toString() // 修改：为新窗口设置更高的 z-index
-  wrapperEl.style.display = 'flex'
+  wrapperEl.style.display = 'flex' // 新增：设置外部盒子为 flex 布局
   wrapperEl.style.justifyContent = 'center'
   wrapperEl.style.alignItems = 'center'
   wrapperEl.style.transition = 'background-color 0.3s ease'
@@ -182,17 +185,45 @@ export function openModal (props: OpenModalProps): ModalMapItem {
   modalEl.style.left = `${mouseX}px`
   modalEl.style.top = `${mouseY}px`
   modalEl.style.transformOrigin = 'center'
-  modalEl.style.transition = 'transform 0.3s ease, opacity 0.3s ease'
+  modalEl.style.transition = 'transform 0.2s ease, opacity 0.2s ease'
   modalEl.style.opacity = '0'
-  modalEl.style.transform = 'scale(0)' // 初始时从点击位置或中间缩放
+  modalEl.style.transform = 'scale(0.5)' // 初始时从点击位置或中间缩放
   modalEl.style.pointerEvents = 'auto' // 新增：确保模态框内部可以点击
+  modalEl.style.display = 'flex' // 新增：设置模态框为 flex 布局
+  modalEl.style.flexDirection = 'column' // 新增：设置 flex 方向为列
 
   const titleEl = document.createElement('div')
   titleEl.style.padding = '16px'
   titleEl.style.borderBottom = '1px solid #e8e8e8'
   titleEl.style.fontSize = '16px'
   titleEl.style.fontWeight = 'bold'
+  titleEl.style.display = 'flex'
+  titleEl.style.justifyContent = 'space-between'
+  titleEl.style.alignItems = 'center'
   titleEl.textContent = typeof title === 'function' ? title() : title.toString()
+
+  const closeButtonEl = document.createElement('div')
+  closeButtonEl.style.cursor = 'pointer'
+  closeButtonEl.style.fontSize = '20px'
+  closeButtonEl.style.userSelect = 'none'
+
+  if (closeButton) {
+    if (typeof closeButton === 'string' || typeof closeButton === 'number') {
+      closeButtonEl.innerHTML = closeButton.toString()
+    } else if (closeButton instanceof HTMLElement) {
+      closeButtonEl.appendChild(closeButton)
+    } else if (typeof closeButton === 'function') {
+      closeButtonEl.appendChild(closeButton())
+    }
+  } else {
+    closeButtonEl.innerHTML = '×'
+  }
+
+  closeButtonEl.onclick = () => {
+    closeModal()
+  }
+
+  titleEl.appendChild(closeButtonEl)
   modalEl.appendChild(titleEl)
 
   dragElement(modalEl, {
@@ -212,6 +243,10 @@ export function openModal (props: OpenModalProps): ModalMapItem {
   const contentEl = document.createElement('div')
   contentEl.className = 'modal-content'
   contentEl.style.padding = '16px'
+  contentEl.style.overflow = 'auto' // 新增：允许内容区域滚动
+  contentEl.style.flex = '1' // 修改：使用 flex 布局来控制内容区域的高度
+  contentEl.style.display = 'flex' // 新增：使用 flex 布局
+  contentEl.style.flexDirection = 'column' // 新增：设置 flex 方向为列
 
   if (typeof content === 'string' || typeof content === 'number') {
     contentEl.innerHTML = content.toString()
@@ -316,4 +351,13 @@ export function openModal (props: OpenModalProps): ModalMapItem {
     props: processedProps, // 使用处理后的 props
     removeEventListenerChangeZIndex: () => {}
   }
+}
+
+// 新增：关闭所有模态框的函数
+export function closeAllModals () {
+  // 复制 modalStore 数组，避免直接操作原数组
+  const modalsToClose = [...modalStore]
+  modalsToClose.forEach(modalItem => {
+    closeModalFunction(modalItem)
+  })
 }
