@@ -28,7 +28,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "poohou-drag-element": "^0.0.2",
+    "poohou-drag-element": "^0.0.4",
     "poohou-resize-element": "^0.1.1"
   },
   "devDependencies": {

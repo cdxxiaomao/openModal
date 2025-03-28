@@ -176,16 +176,16 @@ export function openModal (props: OpenModalProps): ModalMapItem {
   wrapperEl.style.pointerEvents = isOpenMore ? 'none' : 'auto' // 新增：当 isOpenMore 为 true 时，禁用点击事件
 
   const modalEl = document.createElement('div')
-  modalEl.style.width = typeof width === 'number' ? `${width}px` : width
-  modalEl.style.height = typeof height === 'number' ? `${height}px` : height
+  modalEl.style.width = isFullScreen ? '100%' : (typeof width === 'number' ? `${width}px` : width)
+  modalEl.style.height = isFullScreen ? '100%' : (typeof height === 'number' ? `${height}px` : height)
   modalEl.style.backgroundColor = '#fff'
   modalEl.style.borderRadius = '4px'
   modalEl.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)'
   modalEl.style.position = 'absolute'
-  modalEl.style.left = `${mouseX}px`
-  modalEl.style.top = `${mouseY}px`
+  modalEl.style.left = isFullScreen ? '0' : `${mouseX}px`
+  modalEl.style.top = isFullScreen ? '0' : `${mouseY}px`
   modalEl.style.transformOrigin = 'center'
-  modalEl.style.transition = 'transform 0.2s ease, opacity 0.2s ease'
+  modalEl.style.transition = '0.2s'
   modalEl.style.opacity = '0'
   modalEl.style.transform = 'scale(0.5)' // 初始时从点击位置或中间缩放
   modalEl.style.pointerEvents = 'auto' // 新增：确保模态框内部可以点击
@@ -197,15 +197,123 @@ export function openModal (props: OpenModalProps): ModalMapItem {
   titleEl.style.borderBottom = '1px solid #e8e8e8'
   titleEl.style.fontSize = '16px'
   titleEl.style.fontWeight = 'bold'
-  titleEl.style.display = 'flex'
+  titleEl.style.display = 'flex' // 修改：设置为 flex 布局
   titleEl.style.justifyContent = 'space-between'
   titleEl.style.alignItems = 'center'
-  titleEl.textContent = typeof title === 'function' ? title() : title.toString()
 
+  // 新增：渲染 title 内容
+  if (typeof title === 'string' || typeof title === 'number') {
+    const titleContentEl = document.createElement('span')
+    titleContentEl.textContent = title.toString()
+    titleEl.appendChild(titleContentEl)
+  } else if (title instanceof HTMLElement) {
+    titleEl.appendChild(title)
+  } else if (typeof title === 'function') {
+    const renderedTitle = title(() => document.createElement('span'))
+    titleEl.appendChild(renderedTitle)
+  }
+
+  const buttonGroupEl = document.createElement('div') // 新增：按钮组容器
+  buttonGroupEl.style.display = 'flex'
+  buttonGroupEl.style.alignItems = 'center'
+  buttonGroupEl.style.gap = '8px' // 设置按钮间距
+
+  // 全屏按钮样式调整
+  const fullScreenButtonEl = document.createElement('div')
+  fullScreenButtonEl.style.cursor = 'pointer'
+  fullScreenButtonEl.style.fontSize = '20px'
+  fullScreenButtonEl.style.userSelect = 'none'
+  fullScreenButtonEl.style.padding = '4px 8px' // 添加内边距
+  fullScreenButtonEl.style.borderRadius = '4px' // 圆角
+  fullScreenButtonEl.style.backgroundColor = 'transparent' // 默认背景透明
+  fullScreenButtonEl.style.transition = 'background-color 0.2s ease' // 添加过渡效果
+  fullScreenButtonEl.innerHTML = '⛶' // 初始图标为全屏
+
+  // 鼠标移入和点击时的背景颜色变化
+  fullScreenButtonEl.onmouseenter = () => {
+    fullScreenButtonEl.style.backgroundColor = '#f0f0f0'
+  }
+  fullScreenButtonEl.onmouseleave = () => {
+    fullScreenButtonEl.style.backgroundColor = 'transparent'
+  }
+  fullScreenButtonEl.onclick = () => {
+    fullScreenButtonEl.style.backgroundColor = '#d9d9d9' // 点击时背景变深
+    setTimeout(() => {
+      fullScreenButtonEl.style.backgroundColor = '#f0f0f0' // 恢复移入状态
+    }, 200)
+    toggleFullScreen(modalEl)
+  }
+
+  // 关闭按钮样式调整
   const closeButtonEl = document.createElement('div')
   closeButtonEl.style.cursor = 'pointer'
   closeButtonEl.style.fontSize = '20px'
   closeButtonEl.style.userSelect = 'none'
+  closeButtonEl.style.padding = '4px 8px' // 添加内边距
+  closeButtonEl.style.borderRadius = '4px' // 圆角
+  closeButtonEl.style.backgroundColor = 'transparent' // 默认背景透明
+  closeButtonEl.style.transition = 'background-color 0.2s ease' // 添加过渡效果
+  closeButtonEl.innerHTML = '×'
+
+  // 鼠标移入和点击时的背景颜色变化
+  closeButtonEl.onmouseenter = () => {
+    closeButtonEl.style.backgroundColor = '#f0f0f0'
+  }
+  closeButtonEl.onmouseleave = () => {
+    closeButtonEl.style.backgroundColor = 'transparent'
+  }
+  closeButtonEl.onclick = () => {
+    closeButtonEl.style.backgroundColor = '#d9d9d9' // 点击时背景变深
+    setTimeout(() => {
+      closeButtonEl.style.backgroundColor = '#f0f0f0' // 恢复移入状态
+    }, 200)
+    closeModal()
+  }
+
+  // 将按钮添加到按钮组容器
+  buttonGroupEl.appendChild(fullScreenButtonEl)
+  buttonGroupEl.appendChild(closeButtonEl)
+
+  // 将按钮组容器添加到标题栏
+  titleEl.appendChild(buttonGroupEl)
+
+  // 新增：双击头部全屏与还原
+  titleEl.ondblclick = () => {
+    toggleFullScreen(modalEl)
+  }
+
+  let originalLeft: string, originalTop: string
+
+  // 在模态框初始化时记录默认的居中位置
+  setTimeout(() => {
+    modalEl.style.transform = 'scale(1)' // 在加载完成后，平滑地缩放至原始大小
+    modalEl.style.opacity = '1'
+    // 记录默认的居中位置
+    originalLeft = (Number(mouseX) / 2).toString() + 'px'
+    originalTop = (Number(mouseY) / 2).toString() + 'px'
+  }, 0)
+
+  // 新增：切换全屏函数
+  function toggleFullScreen (modalEl: HTMLElement) {
+    if (processedProps.isFullScreen) {
+      // 取消全屏时恢复默认的居中位置
+      modalEl.style.left = originalLeft
+      modalEl.style.top = originalTop
+      modalEl.style.width = typeof width === 'number' ? `${width}px` : width
+      modalEl.style.height = typeof height === 'number' ? `${height}px` : height
+      fullScreenButtonEl.innerHTML = '⛶' // 切换图标为全屏
+    } else {
+      originalLeft = modalEl.style.left
+      originalTop = modalEl.style.top
+      // 全屏时不记录当前位置
+      modalEl.style.width = '100%'
+      modalEl.style.height = '100%'
+      modalEl.style.left = '0'
+      modalEl.style.top = '0'
+      fullScreenButtonEl.innerHTML = '⛿' // 切换图标为取消全屏
+    }
+    processedProps.isFullScreen = !processedProps.isFullScreen // 确保状态正确更新
+  }
 
   if (closeButton) {
     if (typeof closeButton === 'string' || typeof closeButton === 'number') {
@@ -223,12 +331,19 @@ export function openModal (props: OpenModalProps): ModalMapItem {
     closeModal()
   }
 
+  titleEl.appendChild(fullScreenButtonEl) // 新增：将全屏按钮添加到标题栏
   titleEl.appendChild(closeButtonEl)
   modalEl.appendChild(titleEl)
 
   dragElement(modalEl, {
     reference: 'window',
-    handle: [titleEl]
+    handle: [titleEl],
+    onDragStart: () => {
+      modalEl.style.transition = 'none' // 拖动开始时移除过渡效果
+    },
+    onDragEnd: () => {
+      modalEl.style.transition = '0.2s' // 拖动结束后恢复过渡效果
+    }
   })
 
   setTimeout(() => {
@@ -330,13 +445,6 @@ export function openModal (props: OpenModalProps): ModalMapItem {
       wrapperEl.style.zIndex = (zIndex + modalStore.length).toString() // 修改：当前点击窗口置顶
     }
   })
-
-  setTimeout(() => {
-    modalEl.style.left = `${mouseX - modalEl.offsetWidth / 2}px` // 使用 left 定位
-    modalEl.style.top = `${mouseY - modalEl.offsetHeight / 2}px` // 使用 top 定位
-    modalEl.style.transform = 'scale(1)' // 在加载完成后，平滑地缩放至原始大小
-    modalEl.style.opacity = '1'
-  }, 0)
 
   function closeModal () {
     const topModal = modalStore[modalStore.length - 1]
